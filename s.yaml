@@ -1,0 +1,43 @@
+edition: 1.0.0
+name: fc-DoH
+access: default
+
+vars: # 全局变量
+  region: cn-hongkong
+  service:
+    name: fc-DoH
+    description: 'Dns Over HTTPS'
+    logConfig: auto
+  triggers:
+    - name: http_t
+      type: http
+      config:
+        authType: anonymous
+        methods:
+          - GET
+          - POST
+
+services:
+  fc-DoH: # 业务名称/模块名称
+    component: fc # 组件名称，Serverless Devs 工具本身类似于一种游戏机，不具备具体的业务能力，组件类似于游戏卡，用户通过向游戏机中插入不同的游戏卡实现不同的功能，即通过使用不同的组件实现不同的具体业务能力
+    actions:       # 自定义执行逻辑，关于actions 的使用，可以参考：https://www.serverless-devs.com/serverless-devs/yaml#行为描述
+      pre-deploy: # 在deploy之前运行
+        - component: fc build --use-docker --dockerfile ./Dockerfile
+    props:
+      region: ${vars.region} # 关于变量的使用方法，可以参考：https://www.serverless-devs.com/serverless-devs/yaml#变量赋值
+      service: ${vars.service}
+      function:
+        name: doh
+        description: 'Dns Over Https handler'
+        caPort: 8053
+        memorySize: 128
+        timeout: 5
+        runtime: custom-container
+        customContainerConfig:
+          image: registry.cn-hongkong.aliyuncs.com/lc1234/doh:latest
+        codeUri: ./
+        instanceConcurrency: 50        # 单实例多并发
+        environmentVariables:
+          UPSTREAM_DNS_SERVER: udp:8.8.8.8:53
+          DOH_HTTP_PREFIX: /dns-query
+      triggers: ${vars.triggers}
